@@ -21,6 +21,7 @@ public class AppiumMobileListenerManager {
     private ExecutorService executorService;
     private AtomicBoolean monitoring;
     private CountDownLatch firstPollComplete; // Wait for first listener poll to complete
+    private AtomicBoolean listenerRecoveryInProgress; // Track if listeners are actively recovering
     
     public AppiumMobileListenerManager(AndroidDriver driver) {
         this.driver = driver;
@@ -32,6 +33,7 @@ public class AppiumMobileListenerManager {
         });
         this.monitoring = new AtomicBoolean(false);
         this.firstPollComplete = null;
+        this.listenerRecoveryInProgress = new AtomicBoolean(false);
     }
     
     /**
@@ -173,6 +175,7 @@ public class AppiumMobileListenerManager {
      * Execute recovery action for detected element
      */
     private void handleListener(ListenerConfig config, WebElement element) {
+        listenerRecoveryInProgress.set(true);
         try {
             boolean recovered = false;
             
@@ -187,6 +190,8 @@ public class AppiumMobileListenerManager {
             }
         } catch (Exception e) {
             System.err.println("Error handling listener: " + e.getMessage());
+        } finally {
+            listenerRecoveryInProgress.set(false);
         }
     }
     
@@ -235,6 +240,41 @@ public class AppiumMobileListenerManager {
      */
     public void stopMonitoring() {
         monitoring.set(false);
+    }
+    
+    /**
+     * Wait for listeners to settle and complete any ongoing recovery
+     * Call this after critical operations (like rotate) to ensure listeners have handled any issues
+     * @param timeoutMs Maximum time to wait in milliseconds
+     * @throws InterruptedException if interrupted while waiting
+     */
+    public void waitForListenersToSettle(long timeoutMs) throws InterruptedException {
+        long startTime = System.currentTimeMillis();
+        
+        // Wait for any ongoing listener recovery to complete
+        while (listenerRecoveryInProgress.get()) {
+            if (System.currentTimeMillis() - startTime > timeoutMs) {
+                System.err.println("⚠️  Timeout waiting for listener recovery after " + timeoutMs + "ms");
+                break;
+            }
+            Thread.sleep(10);
+        }
+        
+        // Do one more immediate poll to catch any issues that just appeared
+        checkAndHandleListeners();
+        
+        // Small delay to ensure recovery starts if needed
+        Thread.sleep(50);
+        
+        // Wait one more time if recovery was triggered
+        startTime = System.currentTimeMillis();
+        while (listenerRecoveryInProgress.get()) {
+            if (System.currentTimeMillis() - startTime > timeoutMs) {
+                System.err.println("⚠️  Timeout waiting for listener recovery after " + timeoutMs + "ms");
+                break;
+            }
+            Thread.sleep(10);
+        }
     }
     
     /**

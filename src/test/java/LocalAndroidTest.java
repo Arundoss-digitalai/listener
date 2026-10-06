@@ -15,7 +15,7 @@ public class LocalAndroidTest {
 
     protected AndroidDriver<AndroidElement> driver = null;
     DesiredCapabilities dc = new DesiredCapabilities();
-    private String accessKey = "aut_1_M3VBXObMGoSLVGmA-4mdmKfoV4Lda4MNNwNx2mmUztY=";
+    private String accessKey = "aut_1_THs5UlW4d4UD71xQMT5otbjUwa0QEZDQS4Bj-tsgjiQ=";
     private AppiumMobileListenerManager listenerManager;
 
     @BeforeEach
@@ -27,7 +27,7 @@ public class LocalAndroidTest {
         dc.setCapability(AndroidMobileCapabilityType.APP_PACKAGE, "com.experitest.ExperiBank");
         dc.setCapability(AndroidMobileCapabilityType.APP_ACTIVITY, ".LoginActivity");
         dc.setCapability("digitalai:appiumVersion", "3.5.2");
-        driver = new AndroidDriver<>(new URL("https://internal.ct.digital.ai/wd/hub"), dc);
+        driver = new AndroidDriver<>(new URL("https://uscloud.experitest.com/wd/hub"), dc);
 
         
         // Initialize mobile listener manager
@@ -106,8 +106,12 @@ public class LocalAndroidTest {
     }
 
     @Test
-    public void quickStartAndroidNativeDemo() {
+    public void quickStartAndroidNativeDemo() throws InterruptedException {
         driver.rotate(ScreenOrientation.PORTRAIT);
+        
+        // Wait for listeners to detect and handle any issues from rotate (crash-prone operation)
+        listenerManager.waitForListenersToSettle(5000);
+        
         driver.findElement(By.id("com.experitest.ExperiBank:id/usernameTextField")).sendKeys("company");
         driver.findElement(By.id("com.experitest.ExperiBank:id/passwordTextField")).sendKeys("company");
         driver.findElement(By.id("com.experitest.ExperiBank:id/loginButton")).click();
