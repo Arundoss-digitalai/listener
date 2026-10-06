@@ -132,7 +132,7 @@ public class AppiumMobileListenerManager {
             // Continue monitoring in background
             while (monitoring.get() && !listeners.isEmpty()) {
                 try {
-                    Thread.sleep(100); // Check every 100ms
+                    Thread.sleep(50); // Check every 50ms - increased frequency to catch crashes faster
                     checkAndHandleListeners();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
