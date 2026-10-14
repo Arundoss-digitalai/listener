@@ -1,0 +1,29 @@
+client.click
+
+//dump
+
+//element is there
+
+//recovery
+
+//click performed
+
+
+
+appium
+
+
+
+
+
+getFindElements(By.xpath("//*")); //combine all the xpaths
+none seen -> continue
+If one is found -> handle it.
+Get page source -> run it until the right element is found and we recover
+
+1. method overloading
+2. dynamic proxies -> inherited class
+
+
+
+

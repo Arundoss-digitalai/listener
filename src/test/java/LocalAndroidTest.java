@@ -15,7 +15,7 @@ public class LocalAndroidTest {
 
     protected AndroidDriver<AndroidElement> driver = null;
     DesiredCapabilities dc = new DesiredCapabilities();
-    private String accessKey = "aut_1_THs5UlW4d4UD71xQMT5otbjUwa0QEZDQS4Bj-tsgjiQ=";
+    private String accessKey = "";
     private AppiumMobileListenerManager listenerManager;
 
     @BeforeEach
@@ -113,6 +113,8 @@ public class LocalAndroidTest {
         listenerManager.waitForListenersToSettle(5000);
         
         driver.findElement(By.id("com.experitest.ExperiBank:id/usernameTextField")).sendKeys("company");
+
+        listenerManager.waitForListenersToSettle(5000);
         driver.findElement(By.id("com.experitest.ExperiBank:id/passwordTextField")).sendKeys("company");
         driver.findElement(By.id("com.experitest.ExperiBank:id/loginButton")).click();
         // driver.findElement(By.id("com.experitest.ExperiBank:id/makePaymentButton")).click();
