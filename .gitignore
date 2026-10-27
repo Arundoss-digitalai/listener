@@ -1,0 +1,42 @@
+# Maven build output
+target/
+dependency-reduced-pom.xml
+pom.xml.versionsBackup
+release.properties
+*.releaseBackup
+
+# Test / run output
+*.log
+surefire-reports/
+test-output/
+screenshots/
+videos/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+nbproject/
+.nb-gradle/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Java crash / JVM
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# Local overrides and secrets
+# (keep access keys and device-specific config out of the repo)
+local.properties
+*.local
+.env
