@@ -1,134 +1,104 @@
-# Android Test Project
+# Appium Mobile Listeners
 
-A properly configured Maven project for testing Android applications using Appium and Java.
+SeeTest-style mobile listeners for Appium: register any number of listeners, and every
+Appium command is preceded by a check for them, with recovery run before the command
+proceeds.
 
-## Project Structure
+Appium has no server-side equivalent of SeeTestClient's listeners — and neither does the
+Digital.ai grid for Appium sessions — so the check is done client side by intercepting
+every command in a custom `CommandExecutor`. See
+[LISTENER_INTERCEPTION_RESEARCH.md](LISTENER_INTERCEPTION_RESEARCH.md) for the sources,
+the design decisions and the measured overhead.
+
+## Project structure
 
 ```
 listener/
-├── pom.xml                                 # Maven configuration file
-├── src/
-│   └── test/
-│       └── java/
-│           └── LocalAndroidTest.java      # Test class
-├── target/                                 # Built artifacts (auto-generated)
-├── lib/                                    # Optional local libraries
-└── README.md                              # This file
+├── pom.xml
+├── LISTENER_INTERCEPTION_RESEARCH.md        # research, measurements, trade-offs
+└── src/test/java/
+    ├── ListenerCommandExecutor.java         # intercepts every Appium command
+    ├── InterceptingListenerRegistry.java    # listener storage, dump evaluation, recovery
+    ├── MobileListener.java                  # recover(locator) callback interface
+    ├── ListenerAction.java                  # built-in actions (CLICK, WAIT_AND_DISMISS, ...)
+    ├── LocalDeviceAndroidTest.java          # runs on a local device via a local Appium server
+    └── LocalAndroidTest.java                # the same test on a Digital.ai cloud device
 ```
 
 ## Prerequisites
 
-- **Java**: JDK 11 or higher
-- **Maven**: 3.6.0 or higher
-- **Appium Server**: Running and accessible at `https://uscloud.experitest.com/wd/hub`
+- JDK 11 or higher, Maven 3.6+
+- **For the local test**: an Appium 3 server (`appium`), a connected device (`adb devices`),
+  and `com.experitest.ExperiBank` installed on it
+- **For the cloud test**: a Digital.ai access key
 
-## Dependencies
+## Running
 
-The project includes:
-- **JUnit 5.9.3**: Testing framework
-- **Appium Java Client 7.6.0**: Mobile automation library
-- **Selenium 4.0.0**: WebDriver for browser automation
+Local device, local Appium server:
 
-## Building the Project
-
-### Compile the code:
 ```bash
-mvn clean compile
+appium                                    # in another terminal
+mvn test -Dtest=LocalDeviceAndroidTest
 ```
 
-### Compile tests:
+Override the server or device if needed:
+
 ```bash
-mvn clean test-compile
+mvn test -Dtest=LocalDeviceAndroidTest -Dappium.url=http://127.0.0.1:4723/ -Dappium.udid=<udid>
 ```
 
-### Full build:
+Digital.ai cloud device:
+
 ```bash
-mvn clean package
+mvn test -Dtest=LocalAndroidTest -Ddigitalai.accessKey=<your key>
 ```
 
-## Running the Tests
+The access key is read from a system property so it never has to be committed.
 
-### Run all tests:
-```bash
-mvn test
-```
+## How to use the listener
 
-### Run a specific test class:
-```bash
-mvn test -Dtest=LocalAndroidTest
-```
-
-### Run with Maven Surefire Plugin:
-```bash
-mvn clean test
-```
-
-## Configuration
-
-Before running the tests, configure the access key in `LocalAndroidTest.java`:
+Three steps, in this order — the registry must exist before the driver, because the
+executor the driver is built on consults it:
 
 ```java
-private String accessKey = "[Enter Your Access key here]";
+// 1. Create the registry and register listeners (no driver needed yet)
+InterceptingListenerRegistry listeners = new InterceptingListenerRegistry()
+        .setMode(InterceptingListenerRegistry.Mode.PRE_COMMAND);
+
+listeners.addMobileListener("//*[@text='Play Store']", locator -> {
+    driver.activateApp("com.experitest.ExperiBank");
+    return true;
+});
+
+// 2. Build the driver on the intercepting executor
+ListenerCommandExecutor executor = new ListenerCommandExecutor(new URL(url), listeners);
+AndroidDriver<AndroidElement> driver = new AndroidDriver<>(executor, caps);
+
+// 3. Hand the driver back so recovery callbacks can act on it
+listeners.setDriver(driver);
 ```
 
-## Key Test Classes
+After that, the test body needs no changes at all: every `findElement`, `sendKeys`,
+`click` and `rotate` is checked before it runs.
 
-### LocalAndroidTest
-- **Method**: `quickStartAndroidNativeDemo()`
-- **Purpose**: Demonstrates a complete Android test flow with Appium
-- **Features**:
-  - Device orientation control
-  - Element interaction (click, send keys)
-  - Dialog handling
-  - Report URL generation
+### Locator syntax
 
-### Setup and Teardown
+`id=`, `xpath=`, `class=`, `text=`, `accessibilityId=`, or a bare XPath.
 
-- **setUp()**: Initializes the AndroidDriver with required capabilities
-- **tearDown()**: Prints the report URL and closes the driver session
+### Modes
 
-## Maven Plugins
+| Mode | Behaviour |
+| --- | --- |
+| `PRE_COMMAND` (default) | Check the listeners before every command, then run it. |
+| `ON_FAILURE` | Run the command; only if it fails, recover and retry. Free on the happy path, but misses interrupts that do not make the command fail. |
+| `BOTH` | Both of the above. |
 
-- **maven-compiler-plugin**: Compiles source code (Java 11)
-- **maven-surefire-plugin**: Runs unit tests
-- **maven-shade-plugin**: Creates fat JARs with all dependencies
+### Cost
 
-## Troubleshooting
+Measured on a Samsung SM-A217F with a local Appium server: **~120ms per intercepted
+command, +32% on command time**. Detection costs one page-source round trip per command
+regardless of how many listeners are registered, because all listeners are evaluated
+locally against that single dump.
 
-### Build Warnings
-- "bootstrap class path not set" - Can be safely ignored with Java 11
-- "system modules path not set" - Can be safely ignored with Java 11
-
-### Common Issues
-
-1. **Access Key Error**: Ensure you've replaced the placeholder access key
-2. **Connection Error**: Verify Appium server is running and URL is correct
-3. **Element Not Found**: Verify the app is installed and responsive on the device
-
-## Project Configuration
-
-**Group ID**: com.example  
-**Artifact ID**: android-test  
-**Version**: 1.0-SNAPSHOT  
-**Packaging**: jar
-
-## Usage Example
-
-```java
-@Test
-public void exampleTest() {
-    // Rotate device to portrait
-    driver.rotate(ScreenOrientation.PORTRAIT);
-    
-    // Find and interact with elements
-    driver.findElement(By.id("elementId")).sendKeys("input");
-    driver.findElement(By.id("buttonId")).click();
-}
-```
-
-## Notes
-
-- The project follows standard Maven directory structure
-- All dependencies are managed through the `pom.xml` file
-- Tests use JUnit 5 Jupiter annotations (`@Test`, `@BeforeEach`, `@AfterEach`)
-- Compiled classes are in `target/test-classes/`
+Note that on the Digital.ai cloud those extra page-source calls also appear in the test
+report alongside your functional steps.
